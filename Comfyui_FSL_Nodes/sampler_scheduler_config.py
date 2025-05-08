@@ -1,16 +1,21 @@
 """
-CustomSamplerNode for Tshirt Designer Workflow
+FSL Sampler & Scheduler Config Node
+
 Version: 1.0.0
 Author: Fred LeFevre
 Date: 2025-04-27
+
 Description: Custom Sampler Node to feed settings to metadata.
 """
 
 __version__ = "1.0.0"
 
+class FSL_SamplerSchedulerConfig:
+    CATEGORY = "FSL Nodes/Utils"
+    RETURN_TYPES = ("SAMPLER", "SCHEDULER")
+    RETURN_NAMES = ("sampler", "scheduler")
+    FUNCTION = "bundle"
 
-
-class SamplerSchedulerConfig:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -33,20 +38,13 @@ class SamplerSchedulerConfig:
             }
         }
 
-    RETURN_TYPES = ("SAMPLER", "SCHEDULER")
-    RETURN_NAMES = ("sampler", "scheduler")
-
-    FUNCTION = "bundle"
-    CATEGORY = "utils"
-
     def bundle(self, sampler_name, scheduler_name):
         return (sampler_name, scheduler_name)
 
-
 NODE_CLASS_MAPPINGS = {
-    "SamplerSchedulerConfig": SamplerSchedulerConfig
+    "FSL Sampler & Scheduler Config": FSL_SamplerSchedulerConfig,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "SamplerSchedulerConfig": "Sampler & Scheduler Config"
+    "FSL Sampler & Scheduler Config": "🛠️ Sampler & Scheduler Config (FSL)",
 }
