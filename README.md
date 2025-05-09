@@ -2,6 +2,8 @@
 
 A collection of custom ComfyUI workflows and nodes created by **Fred LeFevre**.
 
+Clone this repo into your comfyui folder.
+
 ## Projects Included
 
 ### 🧩 Custom Nodes: Comfyui_FSL_Nodes
