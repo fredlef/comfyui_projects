@@ -22,7 +22,7 @@ Clone this repo into your comfyui folder.
 - **How to use**
   place this node folder into the custom_nodes folder - no additional action is necessary.  Nodes can be found in the comfyui onscreen nodes folder by searching for FSL
 
-Located in the [`Comfyui_FSL_Nodes/`](./Comfyui_FSL_Nodes) directory.
+Located in the [`Comfyui_FSL_Nodes/`](Comfyui_FSL_Nodes) directory.
 
 ---
 
@@ -30,13 +30,13 @@ Located in the [`Comfyui_FSL_Nodes/`](./Comfyui_FSL_Nodes) directory.
 - **Tshirt-Designer-ver_2.0.json**  
   Workflow designed for generating masked transparent images for T-shirt and object printing.
 - Many corrections and updates
-- Full workflow details and notes are available in [`tshirt_designer/`](./tshirt_designer).
+- Full workflow details and notes are available in [`tshirt_designer/`](https://github.com/fredlef/comfyui_projects/tree/main/workflows/tshirt_designer).
 
 ---
 
 ## License
 
-This project and all sub-projects are licensed under the terms of the [LICENSE](./LICENSE) provided at the repository root.
+This project and all sub-projects are licensed under the terms of the [LICENSE](LICENSE) provided at the repository root.
 
 ---
 
