@@ -34,11 +34,7 @@ Located in the [`Comfyui_FSL_Nodes/`](Comfyui_FSL_Nodes) directory.
 
 ---
 
-## License
 
-This project and all sub-projects are licensed under the terms of the [LICENSE](LICENSE) provided at the repository root.
-
----
 
 ## Author
 
