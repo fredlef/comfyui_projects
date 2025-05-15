@@ -22,7 +22,7 @@ Clone this repo into your comfyui folder.
 - **How to use**
   place this node folder into the custom_nodes folder - no additional action is necessary.  Nodes can be found in the comfyui onscreen nodes folder by searching for FSL
 
-Located in the [`Comfyui_FSL_Nodes/`](Comfyui_FSL_Nodes) directory.
+Located in the [`Comfyui_FSL_Nodes/`](https://github.com/fredlef/comfyui_projects/tree/main/custom_nodes/Comfyui_FSL_Nodes) directory.
 
 ---
 
