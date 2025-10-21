@@ -1,0 +1,8 @@
+﻿__pycache__/
+*.pyc
+.venv*/
+.DS_Store
+*.log
+ComfyUI/models/
+ComfyUI/input/
+ComfyUI/output/
