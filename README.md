@@ -16,7 +16,7 @@ Clone this repo into your comfyui folder.
 - **fsl_save_and_strip_alpha**
   Strips alpha channel from RGBA image.  (not currently used)
 - **FSLGeminiGenerateImageV6.py**
-  Allows for the use of Gemini API's to create image.  This node also provide for whether or not the preceding image is used for iterative generation.
+  Allows for the use of Gemini API's to create image.  This node also provide for whether or not the preceding image is used for iterative generation.  The dimension fields are just to support Metadata.  They do not effect the image.
 - **fsl_image_memory.py**
   Provides 4 nodes.  Image Memory Store and Image Memory Recall stores an image to the key entered in the 'key' field.  Image memory recall recalls the image for subsequent use.  Image Memory Clear is used to delete the stored image based on the entered key.  Image Memory Clear All clears all keys that have been entered.
 - **fsl_prompt_compose.py**
@@ -44,21 +44,31 @@ Located in the [`Comfyui_FSL_Nodes/`](https://github.com/fredlef/comfyui_project
 
 ---
 
-### 🎨 Workflow: Nano Banana 
+### 🎨 Workflow: Nano Banana (An API is required)
 - **Nano Banana Iterative-Base.json**
   Allows the user to create an image using Gemini-2.5 Flash-image-preview or Gemini-2.5 Flash.  Once the initial image is created additional iterations of each succeeding image can be created just be entering a new prompt.  Setup is included in a Note node in the workflow.
 - **Nano Banana Iterative-Load 5 Images.json**
   Provides for using up to 5 nodes to create an image with Nano Banana.  The images can they be modified as in the Iterative-Base workflow. Basic instructions are provided in Notes nodes in the workflow.
 - **Nano Banana w_Griptape w_Upscaler.json**
   Uses Griptape Nodes as a front end prompt loader to Nano Banana.  An excellent upscaler by Alex at ComfyUiStudio is included.  An OpenAPI Key is required.
+- **Nano Banana img2img w_Griptape.json**
+  Uses Griptape Nodes as a front end prompt loader to Nano Banana in support of image to image workflow.
+- **Nano Banana img2img Base.json**
+  Base workflow for image to image with Nano Banana.
+  
+---
 
 ### Miscellaneous Workflows
 - **LoadImage-w-Metadata.json**
   Simple workflow to read the metadata created by the FSLImageSaverWithMetadataV5 node
+  
+---
 
 ## Acknowledgements
 - **Thanks to Alex and ComfyuiStudio for allowing me to use his excellent upscaler**
-- **Mycroft Holmes - AKA ChatGPT for excellent assistance and guidance in the creation of Custom Nodes**
+- **Mycroft Holmes - AKA ChatGPT for assistance and guidance in the creation of Custom Nodes**
+
+---
 
 ## Author
 
