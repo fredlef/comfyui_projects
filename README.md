@@ -6,6 +6,13 @@ Clone this repo into your comfyui folder.
 
 ## Projects Included
 
+### Update notes
+
+- **Node Updates**
+   Gemini Generate Image Node v6 was replaced with Gemini Generate Image Node v8.  The v8 version has removed models that do not return an image.  The v8 version also has added the Gemini-3-Pro-Image_Preview model. 
+- **Workflow Updates**
+	All workflows have been updated to have the Gemini Generate Image Node v8.
+
 ### 🧩 Custom Nodes: Comfyui_FSL_Nodes
 - **manual_alpha_mask_painter.py**  
   Custom node to manually convert black mask areas into alpha transparency.  Useful with GRIPTAPE when inpainting and creating the mask by right clicking on the loaded image and select load mask editor.  Griptape requires an alpha channel mask.
@@ -15,7 +22,7 @@ Clone this repo into your comfyui folder.
   Designed to remove the Alpha Channel But Keep Transparent Parts as Background Color (not currently used)
 - **fsl_save_and_strip_alpha**
   Strips alpha channel from RGBA image.  (not currently used)
-- **FSLGeminiGenerateImageV6.py**
+- **FSLGeminiGenerateImageV8.py**
   Allows for the use of Gemini API's to create image.  This node also provide for whether or not the preceding image is used for iterative generation.  The dimension fields are just to support Metadata.  They do not effect the image.
 - **fsl_image_memory.py**
   Provides 4 nodes.  Image Memory Store and Image Memory Recall stores an image to the key entered in the 'key' field.  Image memory recall recalls the image for subsequent use.  Image Memory Clear is used to delete the stored image based on the entered key.  Image Memory Clear All clears all keys that have been entered.
@@ -63,6 +70,14 @@ Located in the [`Comfyui_FSL_Nodes/`](https://github.com/fredlef/comfyui_project
   Simple workflow to read the metadata created by the FSLImageSaverWithMetadataV5 node
   
 ---
+
+### Clarification - Init Image vs Image
+- **Gemini Generate Image Node v8**
+This node has input sockets for both Init-Image and Images.  This was primarily designed to support the iterative workflow.  The Init-Image socket is specifically for the iterative workflow and should be set to "True" after the first image is created.  For the first image both the Init-Image and Images socket should be set to "False".  
+
+If the iterative workflow has a front loader for the first image then for the first run the Images socket should be set to "True" and the Init-Image should be set to "False".  After the first run the Images socket should be changed to "False" and the Init-images socket should be set to True.
+
+I am using this node generally for all my nano banana workflows so if this is for a workflow other than the iterative workflow the Images socket should always be set to "True" and the Init-Image socket should always be set to false.
 
 ## Acknowledgements
 - **Thanks to Alex and ComfyuiStudio for allowing me to use his excellent upscaler**
