@@ -1,2 +1,5 @@
+google-genai
+requests
 pillow
 numpy
+
