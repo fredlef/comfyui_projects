@@ -2,90 +2,98 @@
 
 A collection of custom ComfyUI workflows and nodes created by **Fred LeFevre**.
 
-Clone this repo into your comfyui folder.
+Clone this repo into your `ComfyUI/custom_nodes` folder.
 
-## Projects Included
+## 🚀 Update Notes
 
-### Update notes
+- **New: FSL Gemini & Veo Suite**
+  Added a full-stack cloud media suite (`FSLGeminiNodes.py`) powered by the new Google Unified SDK. Features include:
+  - **Gemini Chat Agent:** A "Creative Director" that handles conversation and writes technical prompts.
+  - **Veo Video Generator:** Supports Text-to-Video and True Image-to-Video (Identity Preservation).
+  - **Imagen 3 Generator:** A lightweight, high-speed image generator.
+  - **Gatekeeper Logic:** Nodes automatically "sleep" (costing $0) when you are just chatting with the agent.
 
 - **Node Updates**
-   Gemini Generate Image Node v6 was replaced with Gemini Generate Image Node v8.  The v8 version has removed models that do not return an image.  The v8 version also has added the Gemini-3-Pro-Image_Preview model. 
-- **Workflow Updates**
-	All workflows have been updated to have the Gemini Generate Image Node v8.
+  - **Gemini Generate Image Node v8:** Removed models that do not return images and added `gemini-3-pro-image-preview`.
+  - **Workflow Updates:** All Nano Banana workflows have been updated to use the v8 node.
 
-### 🧩 Custom Nodes: Comfyui_FSL_Nodes
-- **manual_alpha_mask_painter.py**  
-  Custom node to manually convert black mask areas into alpha transparency.  Useful with GRIPTAPE when inpainting and creating the mask by right clicking on the loaded image and select load mask editor.  Griptape requires an alpha channel mask.
-- **8WayImgSwitch**
-  Image switch with eight inputs
-- **fsl_composite_with_mask_cropped.py**
-  Designed to remove the Alpha Channel But Keep Transparent Parts as Background Color (not currently used)
-- **fsl_save_and_strip_alpha**
-  Strips alpha channel from RGBA image.  (not currently used)
-- **FSLGeminiGenerateImageV8.py**
-  Allows for the use of Gemini API's to create image.  This node also provide for whether or not the preceding image is used for iterative generation.  The dimension fields are just to support Metadata.  They do not effect the image.
-- **fsl_image_memory.py**
-  Provides 4 nodes.  Image Memory Store and Image Memory Recall stores an image to the key entered in the 'key' field.  Image memory recall recalls the image for subsequent use.  Image Memory Clear is used to delete the stored image based on the entered key.  Image Memory Clear All clears all keys that have been entered.
-- **fsl_prompt_compose.py**
-  Node for Positive and Negative prompt as well as 'scene-lock'.  When scene-lock is true -
-  When lock_scene: True, the node prepends a short instruction block before your positive text that tells the model to treat the provided image as fixed “scene layout” and only change what you explicitly ask. The included language (summarized) is:
-    - use the provided image as base;
-    - keep composition, subjects, positions, background, lighting, camera angle, clothing, colors unchanged;
-    - change only what you specify;
-    - do not crop, do not isolate a single subject, do not change the background.
-- **fsl_ensure_nhwc_batch.py**
-  Node guarantees that any incoming image tensor is converted to the [N, H, W, C] (batch–height–width–channels) layout expected by downstream nodes, automatically re-ordering dimensions and normalizing types so all image data conform to a consistent format for safe processing.
-- **FSLImageSaverWithMetadataV5.py**
-  Node stores metadata with image.  Data can be easily read using the LoadImage-w-Metadata.json workflow
+---
+
+## 🧩 Custom Nodes: Comfyui_FSL_Nodes
 
 Located in the [`Comfyui_FSL_Nodes/`](https://github.com/fredlef/comfyui_projects/tree/main/custom_nodes/Comfyui_FSL_Nodes) directory.
 
+### 🤖 Gemini & Veo Cloud Suite (New)
+*   **FSLGeminiChat (Unified SDK):** The "Brain." Handles interactive chat, vision analysis, and prompt engineering. It outputs a `MEDIA_PROMPT_HOOK` to control downstream generators.
+*   **FSLVeoGenerator:** The "Animator." Generates high-fidelity video using Google Veo (v3.1). Supports **Image-to-Video** (animating specific pixels) and **Text-to-Video**, with robust HTTP polling to handle large file downloads.
+*   **FSLImagenGenerator:** The "Artist." A lightweight, native node for Google Imagen 3. Features "Smart Gatekeeping" to return a blank image instantly if the prompt is empty.
+
+### 🛠️ Utility & Legacy Nodes
+*   **FSLGeminiGenerateImageV8.py:** Legacy advanced image generator. Supports Inpainting, Masking, and Init Images for complex editing workflows not covered by the lightweight Imagen node.
+*   **FSLGeminiGenerateImage.py:** This is the most current version of this node and will be the only one maintained going forward
+*	**manual_alpha_mask_painter.py:** Manually convert black mask areas into alpha transparency. Essential for GRIPTAPE inpainting (which requires alpha channel masks).
+*   **8WayImgSwitch:** An image switcher with eight inputs.
+*   **fsl_image_memory.py:** A set of 4 nodes (Store, Recall, Clear, Clear All) to save images into memory using a specific 'key' for complex workflow routing.
+*   **fsl_prompt_compose.py:** Handles Positive/Negative prompts and "Scene Lock." When `lock_scene` is True, it injects instructions to freeze composition, lighting, and subjects while only changing specific details.
+*   **fsl_ensure_nhwc_batch.py:** Guarantees incoming image tensors are converted to `[N, H, W, C]` layout, ensuring compatibility across different node packs.
+*   **FSLImageSaverWithMetadataV5.py:** Saves images with embedded metadata, readable via the `LoadImage-w-Metadata` workflow.
+*   **fsl_composite_with_mask_cropped.py:** *[Legacy]* Removes alpha channel but keeps transparent parts as background color.
+*   **fsl_save_and_strip_alpha:** *[Legacy]* Strips alpha channel from RGBA images.
+
+Located in the [`Comfyui_FSL_Nodes/`](https://github.com/fredlef/comfyui_projects/tree/main/custom_nodes/Comfyui_FSL_Nodes) directory.
+
+
 ---
 
-### 🎨 Workflow: T-shirt Designer
-- **Tshirt-Designer-ver_2.0.json**  
-  It is recommended not to use this workflow.  A replacement workflow that is less complex will be uploaded as 3.0
-  Workflow designed for generating masked transparent images for T-shirt and object printing.
-- Many corrections and updates
-- Full workflow details and notes are available in [`tshirt_designer/`](https://github.com/fredlef/comfyui_projects/tree/main/workflows/tshirt_designer).
+## 🎥 Workflow: Gemini Chat & Veo Video
+*   **Gemini_Chat.json**
+    *   **Concept:** A "Creative Director" workflow. You chat with Gemini, and it intelligently decides whether to reply with text or generate media.
+    *   **Text-to-Video:** Ask for a video, and Gemini writes the prompt for Veo.
+    *   **Image-to-Video:** Upload an image and connect it to both Chat and Veo nodes. Gemini instructs Veo to "Preserve Identity," allowing you to animate specific characters or photos.
+    *   **Requirements:** Google API Key (Billing enabled for Veo).
+	*   **Note the field "enhance_hook".  When enabled this will automatically use Gemini to enhance the prompt you have provided.
 
 ---
 
-### 🎨 Workflow: Nano Banana (An API is required)
-- **Nano Banana Iterative-Base.json**
-  Allows the user to create an image using Gemini-2.5 Flash-image-preview or Gemini-2.5 Flash.  Once the initial image is created additional iterations of each succeeding image can be created just be entering a new prompt.  Setup is included in a Note node in the workflow.
-- **Nano Banana Iterative-Load 5 Images.json**
-  Provides for using up to 5 nodes to create an image with Nano Banana.  The images can they be modified as in the Iterative-Base workflow. Basic instructions are provided in Notes nodes in the workflow.
-- **Nano Banana w_Griptape w_Upscaler.json**
-  Uses Griptape Nodes as a front end prompt loader to Nano Banana.  An excellent upscaler by Alex at ComfyUiStudio is included.  An OpenAPI Key is required.
-- **Nano Banana img2img w_Griptape.json**
-  Uses Griptape Nodes as a front end prompt loader to Nano Banana in support of image to image workflow.
-- **Nano Banana img2img Base.json**
-  Base workflow for image to image with Nano Banana.
-  
+## 🍌 Workflow: Nano Banana (API Required)
+*   **Nano Banana Iterative-Base.json**
+    Create images using `gemini-2.5-flash-image-preview`. Supports iterative generation where each succeeding image is based on the previous one.
+*   **Nano Banana Iterative-Load 5 Images.json**
+    Uses up to 5 input images to create a new generation. Includes instructions in Note nodes.
+*   **Nano Banana w_Griptape w_Upscaler.json**
+    Uses Griptape Nodes as a front-end prompt loader. Includes an excellent upscaler by Alex (ComfyUiStudio). *Requires an OpenAI API Key for Griptape.*
+*   **Nano Banana img2img w_Griptape.json**
+    Griptape-assisted Image-to-Image workflow.
+*   **Nano Banana img2img Base.json**
+    Standard Image-to-Image workflow using Nano Banana.
+
+**Clarification: Init Image vs Image (v8 Node)**
+*   **Iterative Workflow:** Set `Init-Image` socket to **True** (and `Images` to False) after the first generation to loop the result back in.
+*   **Standard Workflow:** Always set `Images` socket to **True** and `Init-Image` socket to **False**.
+
 ---
 
-### Miscellaneous Workflows
-- **LoadImage-w-Metadata.json**
-  Simple workflow to read the metadata created by the FSLImageSaverWithMetadataV5 node
-  
+## 🎨 Workflow: T-shirt Designer
+*   **Tshirt-Designer-ver_2.0.json**
+    *   *Note:* A less complex v3.0 replacement is pending.
+    *   Generates masked transparent images optimized for T-shirt and object printing.
+    *   Full workflow details available in the [`tshirt_designer/`](https://github.com/fredlef/comfyui_projects/tree/main/workflows/tshirt_designer) directory.
+
 ---
 
-### Clarification - Init Image vs Image
-- **Gemini Generate Image Node v8**
-This node has input sockets for both Init-Image and Images.  This was primarily designed to support the iterative workflow.  The Init-Image socket is specifically for the iterative workflow and should be set to "True" after the first image is created.  For the first image both the Init-Image and Images socket should be set to "False".  
+## 📂 Miscellaneous Workflows
+*   **LoadImage-w-Metadata.json**
+    A simple utility workflow to read and display the metadata stored by the `FSLImageSaverWithMetadataV5` node.
 
-If the iterative workflow has a front loader for the first image then for the first run the Images socket should be set to "True" and the Init-Image should be set to "False".  After the first run the Images socket should be changed to "False" and the Init-images socket should be set to True.
-
-I am using this node generally for all my nano banana workflows so if this is for a workflow other than the iterative workflow the Images socket should always be set to "True" and the Init-Image socket should always be set to false.
+---
 
 ## Acknowledgements
-- **Thanks to Alex and ComfyuiStudio for allowing me to use his excellent upscaler**
-- **Mycroft Holmes - AKA ChatGPT for assistance and guidance in the creation of Custom Nodes**
+- **Alex (ComfyUiStudio):** For the excellent upscaler included in the Nano Banana workflows.
+- **Google DeepMind:** For the powerful Gemini, Veo, and Imagen models driving these nodes.
+- **Mycroft Holmes (ChatGPT)and Gemini 3:** For assistance and guidance in the creation of Custom Nodes.
 
 ---
 
 ## Author
 
 Created and maintained by **Fred LeFevre**.
-

@@ -1,0 +1,7 @@
+{
+  "name": "ComfyUI FSL Nodes",
+  "author": "fredlef",
+  "version": "1.0.0",
+  "description": "Custom nodes: FSLGeminiChat, FSLGeminiGenerateImage, Transparent Background helpers, etc.",
+  "tags": ["image", "chat", "video" "veo" "generation", "gemini", "fsl"]
+}
