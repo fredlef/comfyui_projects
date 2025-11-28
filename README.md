@@ -36,7 +36,8 @@ Located in the [`Comfyui_FSL_Nodes/`](https://github.com/fredlef/comfyui_project
 *   **fsl_image_memory.py:** A set of 4 nodes (Store, Recall, Clear, Clear All) to save images into memory using a specific 'key' for complex workflow routing.
 *   **fsl_prompt_compose.py:** Handles Positive/Negative prompts and "Scene Lock." When `lock_scene` is True, it injects instructions to freeze composition, lighting, and subjects while only changing specific details.
 *   **fsl_ensure_nhwc_batch.py:** Guarantees incoming image tensors are converted to `[N, H, W, C]` layout, ensuring compatibility across different node packs.
-*   **FSLImageSaverWithMetadataV5.py:** Saves images with embedded metadata, readable via the `LoadImage-w-Metadata` workflow.
+*   **FSLImageSaverWithMetadataV5.py:** Legacy metadata node.  Deversioned in the newest update. Saves images with embedded metadata, readable via the `LoadImage-w-Metadata` workflow.
+*   **FSLImageSaverWithMetadata.py:** This is the most current version of this node and will be the only one maintained going forward.
 *   **fsl_composite_with_mask_cropped.py:** *[Legacy]* Removes alpha channel but keeps transparent parts as background color.
 *   **fsl_save_and_strip_alpha:** *[Legacy]* Strips alpha channel from RGBA images.
 
