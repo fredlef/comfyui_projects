@@ -8,6 +8,7 @@ from PIL import Image
 from io import BytesIO
 import folder_paths
 import torch
+from pathlib import Path   # <-- required for path sanitization
 
 # --- NEW UNIFIED SDK IMPORT ---
 try:
@@ -20,6 +21,10 @@ except ImportError:
 
 NODE_CATEGORY = "FSL/Gemini"
 CHAT_SESSIONS = {}
+
+###############################################################
+# FSLGeminiChat
+###############################################################
 
 class FSLGeminiChat:
     """
@@ -58,15 +63,18 @@ class FSLGeminiChat:
 
     def chat_session(self, api_key, prompt, session_id, model_name, reset_chat, enhance_hook, debug_models, image_input=None):
         global CHAT_SESSIONS
-        if genai is None: return ("Error: google-genai library missing.", "", "", "")
+        if genai is None:
+            return ("Error: google-genai library missing.", "", "", "")
 
         final_api_key = api_key.strip() or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-        if not final_api_key: return ("Error: API Key missing.", "", "", "")
+        if not final_api_key:
+            return ("Error: API Key missing.", "", "", "")
 
         client = genai.Client(api_key=final_api_key)
         history = []
         if reset_chat:
-            if session_id in CHAT_SESSIONS: del CHAT_SESSIONS[session_id]
+            if session_id in CHAT_SESSIONS:
+                del CHAT_SESSIONS[session_id]
         elif session_id in CHAT_SESSIONS:
             history = CHAT_SESSIONS[session_id]
 
@@ -96,7 +104,11 @@ class FSLGeminiChat:
             system_instruction = f"{base_instruction} If generating, output 'IMG_HOOK:' for images or 'VID_HOOK:' for video."
 
         try:
-            chat = client.chats.create(model=model_name, history=history, config=types.GenerateContentConfig(system_instruction=system_instruction))
+            chat = client.chats.create(
+                model=model_name,
+                history=history,
+                config=types.GenerateContentConfig(system_instruction=system_instruction)
+            )
             
             if image_input is not None:
                 pil_img = self.tensor2pil(image_input)
@@ -130,13 +142,20 @@ class FSLGeminiChat:
                 role = msg.role.upper()
                 txt = ""
                 for p in msg.parts:
-                    if p.text: txt += p.text + " "
+                    if p.text:
+                        txt += p.text + " "
                 formatted_history += f"[{role}]: {txt.strip()}\n"
 
             return (clean_reply, image_prompt, video_prompt, formatted_history)
 
-        except Exception as e: return (f"Gemini API Error: {str(e)}", "", "", "")
+        except Exception as e:
+            return (f"Gemini API Error: {str(e)}", "", "", "")
 
+
+
+###############################################################
+# FSLGeminiImageGenerator
+###############################################################
 
 class FSLGeminiImageGenerator:
     """
@@ -151,7 +170,6 @@ class FSLGeminiImageGenerator:
             "required": {
                 "api_key": ("STRING", {"multiline": False, "default": ""}),
                 "prompt": ("STRING", {"multiline": True, "default": ""}), 
-                # Gemini 3 Preview set as default per request
                 "model_name": ([
                     "gemini-3-pro-image-preview",
                     "gemini-2.0-flash", 
@@ -173,7 +191,8 @@ class FSLGeminiImageGenerator:
             return (self.create_blank_image(),)
 
         final_api_key = api_key.strip() or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-        if not final_api_key: return (self.create_blank_image(),)
+        if not final_api_key:
+            return (self.create_blank_image(),)
 
         print(f"FSL Gemini Image: Generating with {model_name}...")
         
@@ -210,6 +229,66 @@ class FSLGeminiImageGenerator:
         return torch.zeros((1, 64, 64, 3), dtype=torch.float32)
 
 
+
+###############################################################
+# SAFE PATH SANITIZATION FOR VIDEO OUTPUT
+###############################################################
+
+def sanitize_video_save_path(save_location: str, base_output_dir: Path, default_filename: str) -> Path:
+    """
+    Sanitize a user-supplied save_location for video output.
+
+    - Always keep the result inside base_output_dir.
+    - Treat save_location as either:
+        * a relative directory, or
+        * a relative .mp4 file path under base_output_dir.
+    - Strip any absolute roots and '..' segments.
+    """
+    base_output_dir = base_output_dir.resolve()
+
+    if not save_location or not save_location.strip():
+        return (base_output_dir / default_filename).resolve()
+
+    raw = save_location.strip()
+    p = Path(raw)
+
+    # Convert absolute → relative
+    if p.is_absolute():
+        p = Path(*p.parts[1:])
+
+    # Strip unsafe segments
+    safe_parts = [part for part in p.parts if part not in ("..", ".", "", "/", "\\")]
+
+    if not safe_parts:
+        return (base_output_dir / default_filename).resolve()
+
+    # Case 1: save_location ends with .mp4
+    if safe_parts[-1].lower().endswith(".mp4"):
+        filename = safe_parts[-1].replace("/", "_").replace("\\", "_")
+        dir_parts = safe_parts[:-1]
+        safe_dir = Path(*dir_parts) if dir_parts else Path()
+        candidate = (base_output_dir / safe_dir / filename).resolve()
+    else:
+        # Case 2: treat as directory only
+        safe_dir = Path(*safe_parts)
+        candidate = (base_output_dir / safe_dir / default_filename).resolve()
+
+    # Enforce inside base_output_dir
+    try:
+        if os.path.commonpath([str(base_output_dir), str(candidate)]) != str(base_output_dir):
+            return (base_output_dir / default_filename).resolve()
+    except Exception:
+        return (base_output_dir / default_filename).resolve()
+
+    candidate.parent.mkdir(parents=True, exist_ok=True)
+    return candidate
+
+
+
+###############################################################
+# FSLVeoGenerator (HARDENED)
+###############################################################
+
 class FSLVeoGenerator:
     """
     Google Veo Generator - STRICT SAFE MODE
@@ -225,14 +304,25 @@ class FSLVeoGenerator:
             "required": {
                 "api_key": ("STRING", {"multiline": False, "default": ""}),
                 "prompt": ("STRING", {"multiline": True, "default": ""}), 
-                "model_name": (["veo-3.1-generate-preview", "veo-3.0-generate-preview", "veo-2.0-generate-001"], {"default": "veo-3.1-generate-preview"}),
-                # Widgets retained for UI, but IGNORED internally for stability
+                "model_name": ([
+                    "veo-3.1-generate-preview",
+                    "veo-3.0-generate-preview",
+                    "veo-2.0-generate-001"
+                ], {"default": "veo-3.1-generate-preview"}),
+                # Widgets retained for UI but ignored internally
                 "duration_seconds": ("INT", {"default": 5, "min": 5, "max": 8, "step": 1}),
                 "aspect_ratio": (["16:9", "9:16", "1:1", "4:3", "3:4"], {"default": "16:9"}),
             },
             "optional": {
                 "image_input": ("IMAGE",),
-                "save_location": ("STRING", {"multiline": False, "default": "", "placeholder": "Default: ComfyUI/output folder"}),
+                "save_location": (
+                    "STRING",
+                    {
+                        "multiline": False,
+                        "default": "",
+                        "placeholder": "Relative path under ComfyUI/output"
+                    }
+                ),
             }
         }
 
@@ -251,7 +341,8 @@ class FSLVeoGenerator:
             return ("",)
 
         final_api_key = api_key.strip() or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-        if not final_api_key: return ("Error: API Key missing.",)
+        if not final_api_key:
+            return ("Error: API Key missing.",)
 
         print(f"FSL Veo: Requesting {model_name} (Forced Safe Defaults)...")
         
@@ -268,19 +359,16 @@ class FSLVeoGenerator:
                 img_bytes = buffered.getvalue()
                 img_arg = types.Image(image_bytes=img_bytes, mime_type='image/png')
 
-            # --- SUBMISSION (SAFE MODE) ---
-            # We strip ALL config parameters except 'number_of_videos'. 
-            # This forces the API to use its internal defaults, bypassing the validation 400 errors.
-            
+            # --- STRIPPED SAFE SUBMISSION ---
             if img_arg:
-                 print(f"FSL Veo: Submitting Img2Vid (Defaults)")
-                 operation = client.models.generate_videos(
+                print(f"FSL Veo: Submitting Img2Vid (Defaults)")
+                operation = client.models.generate_videos(
                     model=model_name, prompt=text_prompt, image=img_arg, 
                     config=types.GenerateVideosConfig(number_of_videos=1)
                 )
             else:
-                 print(f"FSL Veo: Submitting Text2Vid (Defaults)")
-                 operation = client.models.generate_videos(
+                print(f"FSL Veo: Submitting Text2Vid (Defaults)")
+                operation = client.models.generate_videos(
                     model=model_name, prompt=text_prompt, 
                     config=types.GenerateVideosConfig(number_of_videos=1)
                 )
@@ -302,55 +390,59 @@ class FSLVeoGenerator:
                     print("\nFSL Veo: Finished. Downloading...")
                     try:
                         payload = data.get("response") or data.get("result")
-                        if not payload: return ("Error: No result payload.",)
+                        if not payload:
+                            return ("Error: No result payload.",)
 
-                        samples = payload.get("generateVideoResponse", {}).get("generatedSamples", []) or payload.get("generatedVideos", []) or payload.get("generatedSamples", [])
+                        samples = payload.get("generateVideoResponse", {}).get("generatedSamples", []) \
+                                  or payload.get("generatedVideos", []) \
+                                  or payload.get("generatedSamples", [])
                         if not samples: 
                             rai = payload.get("generateVideoResponse", {})
-                            if rai.get("raiMediaFilteredCount", 0) > 0: return ("Error: Video BLOCKED by Safety Filters.",)
+                            if rai.get("raiMediaFilteredCount", 0) > 0:
+                                return ("Error: Video BLOCKED by Safety Filters.",)
                             return (f"Error: No samples found. {str(payload)[:200]}",)
 
                         video_obj = samples[0]["video"]
                         if "uri" in video_obj:
-                            dl_uri = video_obj["uri"] + (f"&key={final_api_key}" if "?alt=media" in video_obj["uri"] else f"?key={final_api_key}")
-                            with urllib.request.urlopen(urllib.request.Request(dl_uri, headers={'User-Agent': 'Mozilla/5.0'})) as v_resp:
+                            dl_uri = video_obj["uri"] + (
+                                f"&key={final_api_key}" 
+                                if "?alt=media" in video_obj["uri"] 
+                                else f"?key={final_api_key}"
+                            )
+                            with urllib.request.urlopen(
+                                urllib.request.Request(dl_uri, headers={'User-Agent': 'Mozilla/5.0'})
+                            ) as v_resp:
                                 video_bytes = v_resp.read()
                         elif "videoBytes" in video_obj:
                             video_bytes = base64.b64decode(video_obj["videoBytes"])
                         break
-                    except Exception as e: return (f"Error downloading: {e}",)
-                else: print(".", end="", flush=True)
+                    except Exception as e:
+                        return (f"Error downloading: {e}",)
+                else:
+                    print(".", end="", flush=True)
 
             if video_bytes:
                 filename = f"{self.prefix}_{int(time.time())}.mp4"
-                save_dir = self.default_output_dir
-                
-                # Default path
-                final_path = os.path.join(save_dir, filename)
+                base_dir = Path(self.default_output_dir)
 
-                if save_location and save_location.strip():
-                    custom_path = save_location.strip()
-                    # If path is relative, make it relative to output/
-                    if not os.path.isabs(custom_path):
-                        custom_path = os.path.join(save_dir, custom_path)
+                # --- SAFE & SANITIZED final path ---
+                final_path = sanitize_video_save_path(save_location, base_dir, filename)
 
-                    if custom_path.lower().endswith(".mp4"):
-                        final_path = custom_path
-                        if not os.path.exists(os.path.dirname(final_path)): 
-                            try: os.makedirs(os.path.dirname(final_path), exist_ok=True)
-                            except: final_path = os.path.join(save_dir, filename)
-                    else:
-                        if not os.path.exists(custom_path): 
-                            try: os.makedirs(custom_path, exist_ok=True)
-                            except: custom_path = save_dir
-                        final_path = os.path.join(custom_path, filename)
-
-                with open(final_path, "wb") as f: f.write(video_bytes)
+                with open(final_path, "wb") as f:
+                    f.write(video_bytes)
                 print(f"FSL Veo SAVED: {final_path}")
-                return (final_path,)
-            else: return ("Error: Generation failed.",)
+                return (str(final_path),)
+            else:
+                return ("Error: Generation failed.",)
 
-        except Exception as e: return (f"Error: {e}",)
+        except Exception as e:
+            return (f"Error: {e}",)
+
+
+
+###############################################################
+# NODE REGISTRATION
+###############################################################
 
 NODE_CLASS_MAPPINGS = {
     "FSLGeminiChat": FSLGeminiChat,

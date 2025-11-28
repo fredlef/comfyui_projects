@@ -7,6 +7,53 @@ import torch
 from PIL import Image, PngImagePlugin
 import folder_paths
 from datetime import datetime
+from pathlib import Path
+
+
+def sanitize_filename_prefix(filename: str, default_name: str = "gemini_out") -> str:
+    """
+    Sanitize a user-supplied filename prefix used for saving images.
+
+    - Drop any directory components.
+    - Remove path traversal tokens.
+    - Replace slashes/backslashes with underscores.
+    - Strip extension, since ComfyUI's get_save_image_path handles suffixing.
+    """
+    if not filename:
+        name = default_name
+    else:
+        # Keep only the last path component
+        name = Path(filename).name
+
+        # Remove path separators
+        name = name.replace("/", "_").replace("\\", "_")
+
+        # Strip extension, use only stem as prefix
+        stem = Path(name).stem
+        name = stem or default_name
+
+    return name
+
+
+def sanitize_subfolder(subfolder: str) -> str:
+    """
+    Sanitize a user-supplied subfolder name so it cannot escape
+    the base output directory or introduce absolute paths.
+    """
+    if not subfolder:
+        return ""
+
+    # Normalize and break into parts
+    p = Path(subfolder.strip())
+
+    # Keep only safe parts (no '..', '.', or empty)
+    safe_parts = [part for part in p.parts if part not in ("..", ".", "", "/","\\")]
+
+    if not safe_parts:
+        return ""
+
+    # Rebuild a safe relative path using '/‘ as separator (what Comfy expects)
+    return "/".join(safe_parts)
 
 
 class FSLImageSaverWithMetadata:
@@ -107,15 +154,20 @@ class FSLImageSaverWithMetadata:
         external_metadata: Optional[Dict[str, Any]] = None,
     ) -> Tuple[Dict[str, Any], torch.Tensor]:
 
-        # Base Comfy output directory
-        base = folder_paths.get_output_directory()
+        # Base Comfy output directory (absolute, resolved)
+        base_output_dir = Path(folder_paths.get_output_directory()).resolve()
 
-        # User subfolder, normalized and forced to be relative
-        sub = (save_to_subfolder or "").strip()
-        sub = os.path.normpath(sub).replace("\\", "/").lstrip("/")
+        # Sanitize subfolder to prevent escaping base_output_dir
+        safe_subfolder = sanitize_subfolder(save_to_subfolder or "")
+        outdir = (base_output_dir / safe_subfolder).resolve() if safe_subfolder else base_output_dir
 
-        # Absolute directory we will actually save into
-        outdir = os.path.join(base, sub) if sub else base
+        # Ensure outdir is still within base_output_dir
+        try:
+            if os.path.commonpath([str(base_output_dir), str(outdir)]) != str(base_output_dir):
+                outdir = base_output_dir
+        except Exception:
+            outdir = base_output_dir
+
         os.makedirs(outdir, exist_ok=True)
 
         # Normalize batch dimension
@@ -127,8 +179,10 @@ class FSLImageSaverWithMetadata:
         ts_file = now_local.strftime("%Y%m%d_%H%M%S")        # e.g. 20251014_163733
         iso_human = now_local.isoformat(timespec="seconds")  # e.g. 2025-10-14T16:37:33-04:00
 
+        # Sanitize filename prefix early and apply datetime here
+        safe_prefix = sanitize_filename_prefix(filename, default_name="gemini_out")
         if append_datetime:
-            filename = f"{filename}_{ts_file}"
+            safe_prefix = f"{safe_prefix}_{ts_file}"
 
         model_value = (model_string or modelname).strip()
 
@@ -190,10 +244,11 @@ class FSLImageSaverWithMetadata:
             mode = "RGBA" if np_img.shape[-1] == 4 else ("RGB" if np_img.shape[-1] == 3 else None)
             pil = Image.fromarray(np_img, mode=mode) if mode else Image.fromarray(np_img)
 
-            # Use Comfy's helper with a RELATIVE subfolder, not an absolute path
+            # Use Comfy's helper with sanitized prefix + subfolder
+            path = None
             try:
-                # 'sub' is something like "metadata/gem3" or ""
-                ret = folder_paths.get_save_image_path(filename, sub, i)
+                # safe_subfolder is something like "metadata/gem3" or ""
+                ret = folder_paths.get_save_image_path(safe_prefix, safe_subfolder, i)
             except Exception:
                 ret = None
 
@@ -204,7 +259,7 @@ class FSLImageSaverWithMetadata:
             else:
                 # Fallback: ensure our own dir exists and build the path manually
                 os.makedirs(outdir, exist_ok=True)
-                path = os.path.join(outdir, f"{filename}_{i:05}.png")
+                path = os.path.join(str(outdir), f"{safe_prefix}_{i:05}.png")
 
             pil.save(path, format="PNG", pnginfo=pnginfo)
 
