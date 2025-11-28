@@ -10,12 +10,12 @@ Clone this repo into your `ComfyUI/custom_nodes` folder.
   Added a full-stack cloud media suite (`FSLGeminiNodes.py`) powered by the new Google Unified SDK. Features include:
   - **Gemini Chat Agent:** A "Creative Director" that handles conversation and writes technical prompts.
   - **Veo Video Generator:** Supports Text-to-Video and True Image-to-Video (Identity Preservation).
-  - **Imagen 3 Generator:** A lightweight, high-speed image generator.
+  - **Gemini Image Generator:** A lightweight, high-speed image generator using `generate_content`.
   - **Gatekeeper Logic:** Nodes automatically "sleep" (costing $0) when you are just chatting with the agent.
 
 - **Node Updates**
-  - **Gemini Generate Image Node v8:** Removed models that do not return images and added `gemini-3-pro-image-preview`.
-  - **Workflow Updates:** All Nano Banana workflows have been updated to use the v8 node.
+  - **Gemini Generate Image Node:** Consolidated versions. The standalone `FSLGeminiGenerateImage.py` is the maintained advanced version.
+  - **Workflow Updates:** All Nano Banana workflows have been updated to use the latest nodes.
 
 ---
 
@@ -23,26 +23,23 @@ Clone this repo into your `ComfyUI/custom_nodes` folder.
 
 Located in the [`Comfyui_FSL_Nodes/`](https://github.com/fredlef/comfyui_projects/tree/main/custom_nodes/Comfyui_FSL_Nodes) directory.
 
-### 🤖 Gemini & Veo Cloud Suite (New)
-*   **FSLGeminiChat (Unified SDK):** The "Brain." Handles interactive chat, vision analysis, and prompt engineering. It outputs a `MEDIA_PROMPT_HOOK` to control downstream generators.
+### 🤖 Gemini & Veo Cloud Suite (File: `FSLGeminiNodes.py`)
+*   **FSLGeminiChat (Unified SDK):** The "Brain." Handles interactive chat, vision analysis, and prompt engineering. It intelligently routes requests to `IMAGE_PROMPT` or `VIDEO_PROMPT` to prevent double generation.
 *   **FSLVeoGenerator:** The "Animator." Generates high-fidelity video using Google Veo (v3.1). Supports **Image-to-Video** (animating specific pixels) and **Text-to-Video**, with robust HTTP polling to handle large file downloads.
-*   **FSLImagenGenerator:** The "Artist." A lightweight, native node for Google Imagen 3. Features "Smart Gatekeeping" to return a blank image instantly if the prompt is empty.
+*   **FSLGeminiImageGenerator:** The "Artist" (Pro). A lightweight, native node using Gemini models (e.g., `gemini-2.0-flash`) for image generation via the Chat endpoint. Features "Smart Gatekeeping" to return a blank image instantly if the prompt is empty.
 
 ### 🛠️ Utility & Legacy Nodes
-*   **FSLGeminiGenerateImageV8.py:** Legacy advanced image generator. Supports Inpainting, Masking, and Init Images for complex editing workflows not covered by the lightweight Imagen node.
-*   **FSLGeminiGenerateImage.py:** This is the most current version of this node and will be the only one maintained going forward
-*	**manual_alpha_mask_painter.py:** Manually convert black mask areas into alpha transparency. Essential for GRIPTAPE inpainting (which requires alpha channel masks).
+*   **FSLGeminiGenerateImage.py:** This is the current standalone advanced image generator. Supports Inpainting, Masking, and Init Images for complex editing workflows.
+*   **FSLGeminiGenerateImageV8.py:** *[Legacy]* Previous version.
+*   **manual_alpha_mask_painter.py:** Manually convert black mask areas into alpha transparency. Essential for GRIPTAPE inpainting (which requires alpha channel masks).
 *   **8WayImgSwitch:** An image switcher with eight inputs.
 *   **fsl_image_memory.py:** A set of 4 nodes (Store, Recall, Clear, Clear All) to save images into memory using a specific 'key' for complex workflow routing.
 *   **fsl_prompt_compose.py:** Handles Positive/Negative prompts and "Scene Lock." When `lock_scene` is True, it injects instructions to freeze composition, lighting, and subjects while only changing specific details.
 *   **fsl_ensure_nhwc_batch.py:** Guarantees incoming image tensors are converted to `[N, H, W, C]` layout, ensuring compatibility across different node packs.
-*   **FSLImageSaverWithMetadataV5.py:** Legacy metadata node.  Deversioned in the newest update. Saves images with embedded metadata, readable via the `LoadImage-w-Metadata` workflow.
-*   **FSLImageSaverWithMetadata.py:** This is the most current version of this node and will be the only one maintained going forward.
+*   **FSLImageSaverWithMetadata.py:** The current metadata saver. Saves images with embedded metadata, readable via the `LoadImage-w-Metadata` workflow. Supports custom subfolders.
+*   **FSLImageSaverWithMetadataV5.py:** *[Legacy]* De-versioned in the newest update.
 *   **fsl_composite_with_mask_cropped.py:** *[Legacy]* Removes alpha channel but keeps transparent parts as background color.
 *   **fsl_save_and_strip_alpha:** *[Legacy]* Strips alpha channel from RGBA images.
-
-Located in the [`Comfyui_FSL_Nodes/`](https://github.com/fredlef/comfyui_projects/tree/main/custom_nodes/Comfyui_FSL_Nodes) directory.
-
 
 ---
 
@@ -52,7 +49,23 @@ Located in the [`Comfyui_FSL_Nodes/`](https://github.com/fredlef/comfyui_project
     *   **Text-to-Video:** Ask for a video, and Gemini writes the prompt for Veo.
     *   **Image-to-Video:** Upload an image and connect it to both Chat and Veo nodes. Gemini instructs Veo to "Preserve Identity," allowing you to animate specific characters or photos.
     *   **Requirements:** Google API Key (Billing enabled for Veo).
-	*   **Note the field "enhance_hook".  When enabled this will automatically use Gemini to enhance the prompt you have provided.
+    *   **Feature:** Note the field **"enhance_hook"**. When enabled, this automatically uses Gemini to enhance the raw prompt before sending it to the generator.
+
+---
+
+## 🚦 Veo Logic & Modes (Critical)
+
+The **Veo Generator** node operates in two distinct modes to satisfy API requirements:
+
+### Mode A: Image-to-Video (Identity Preservation)
+*   **Trigger:** A wire is connected to `image_input`.
+*   **Behavior:** Veo animates the pixels provided.
+*   **Constraint:** **Duration and Aspect Ratio sliders are IGNORED.** The Veo 3.1 API currently rejects custom configs when an image is present. The node automatically uses the model's defaults to prevent crashes.
+
+### Mode B: Text-to-Video (Generation)
+*   **Trigger:** Nothing is connected to `image_input`.
+*   **Behavior:** Veo generates a video from scratch based on words.
+*   **Capabilities:** Full control over `duration_seconds` (5s - 8s) and `aspect_ratio`.
 
 ---
 
@@ -68,7 +81,7 @@ Located in the [`Comfyui_FSL_Nodes/`](https://github.com/fredlef/comfyui_project
 *   **Nano Banana img2img Base.json**
     Standard Image-to-Image workflow using Nano Banana.
 
-**Clarification: Init Image vs Image (v8 Node)**
+**Clarification: Init Image vs Image (Legacy Node)**
 *   **Iterative Workflow:** Set `Init-Image` socket to **True** (and `Images` to False) after the first generation to loop the result back in.
 *   **Standard Workflow:** Always set `Images` socket to **True** and `Init-Image` socket to **False**.
 
@@ -84,14 +97,14 @@ Located in the [`Comfyui_FSL_Nodes/`](https://github.com/fredlef/comfyui_project
 
 ## 📂 Miscellaneous Workflows
 *   **LoadImage-w-Metadata.json**
-    A simple utility workflow to read and display the metadata stored by the `FSLImageSaverWithMetadataV5` node.
+    A simple utility workflow to read and display the metadata stored by the `FSLImageSaverWithMetadata` node.
 
 ---
 
 ## Acknowledgements
 - **Alex (ComfyUiStudio):** For the excellent upscaler included in the Nano Banana workflows.
 - **Google DeepMind:** For the powerful Gemini, Veo, and Imagen models driving these nodes.
-- **Mycroft Holmes (ChatGPT)and Gemini 3:** For assistance and guidance in the creation of Custom Nodes.
+- **Mycroft Holmes (ChatGPT) and Gemini 3:** For assistance and guidance in the creation of Custom Nodes.
 
 ---
 
