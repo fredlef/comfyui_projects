@@ -80,5 +80,3 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FSL Save And Strip Alpha": "💾 Save & Strip Alpha (FSL)",
 }
-
-}
