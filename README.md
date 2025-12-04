@@ -6,6 +6,18 @@ Clone this repo into your `ComfyUI/custom_nodes` folder.
 
 ## 🚀 Update Notes
 
+- **📌 Version 1.1.1 – Update Notes
+
+This release includes a maintenance update to keep the FSLGeminiGenerateImage node compatible with current Google Gemini model availability.
+Changes in 1.1.1
+Removed two deprecated Google image-generation models:
+
+gemini-2.5-flash-image-preview
+gemini-2.0-flash-exp
+
+Google has scheduled these models for discontinuation, so they have been removed from the selectable model list to prevent API errors and improve workflow stability.
+No other functionality has changed in this version.
+
 - **New: FSL Gemini & Veo Suite**
   Added a full-stack cloud media suite (`FSLGeminiNodes.py`) powered by the new Google Unified SDK. Features include:
   - **Gemini Chat Agent:** A "Creative Director" that handles conversation and writes technical prompts.
@@ -100,6 +112,13 @@ The **Veo Generator** node operates in two distinct modes to satisfy API require
     A simple utility workflow to read and display the metadata stored by the `FSLImageSaverWithMetadata` node.
 
 ---
+
+## 📜 Changelog
+- ##1.1.1 — Maintenance Update
+
+Removed deprecated Gemini models
+(gemini-2.5-flash-image-preview, gemini-2.0-flash-exp)
+from FSLGeminiGenerateImage to maintain compatibility with the latest Google API.
 
 ## Acknowledgements
 - **Alex (ComfyUiStudio):** For the excellent upscaler included in the Nano Banana workflows.

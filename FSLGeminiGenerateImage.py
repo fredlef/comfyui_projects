@@ -134,8 +134,6 @@ def _post_with_backoff(url: str, headers: Dict[str, str], params: Dict[str, Any]
 MODEL_CHOICES = (
     "gemini-3-pro-image-preview",
     "gemini-2.5-flash-image",
-    "gemini-2.5-flash-image-preview",
-    "gemini-2.0-flash-exp",
 )
 
 
