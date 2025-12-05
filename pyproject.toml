@@ -1,8 +1,10 @@
 [project]
 name = "fsl_nodes"
-description = ""
-version = "1.0.0"
-license = {file = "LICENSE"} 
+description = "Custom nodes: FSLGeminiChat, FSLGeminiGenerateImage, Transparent Background helpers, and more."
+version = "1.1.1"
+license = { file = "LICENSE.md" }
+
+dependencies = ["google-genai", "requests", "pillow", "numpy"]  # adjust to your real deps
 # classifiers = [
 #     # For OS-independent nodes (works on all operating systems)
 #     "Operating System :: OS Independent",
@@ -29,7 +31,7 @@ Documentation = "https://github.com/fredlef/Comfyui_FSL_Nodes/wiki"
 "Bug Tracker" = "https://github.com/fredlef/Comfyui_FSL_Nodes/issues"
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "fredlef"
 DisplayName = "Comfyui_FSL_Nodes"
 Icon = ""
 includes = [] 
