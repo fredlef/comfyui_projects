@@ -4,11 +4,12 @@ import json
 import base64
 import urllib.request
 import numpy as np
+import random # <--- ADDED: Required for exponential backoff retry logic
 from PIL import Image
 from io import BytesIO
 import folder_paths
 import torch
-from pathlib import Path   # <-- required for path sanitization
+from pathlib import Path
 
 # --- NEW UNIFIED SDK IMPORT ---
 try:
@@ -231,7 +232,6 @@ class FSLGeminiImageGenerator:
         return torch.zeros((1, 64, 64, 3), dtype=torch.float32)
 
 
-
 ###############################################################
 # SAFE PATH SANITIZATION FOR VIDEO OUTPUT
 ###############################################################
@@ -284,7 +284,6 @@ def sanitize_video_save_path(save_location: str, base_output_dir: Path, default_
 
     candidate.parent.mkdir(parents=True, exist_ok=True)
     return candidate
-
 
 
 ###############################################################
@@ -340,57 +339,139 @@ class FSLVeoGenerator:
     def generate_video(self, api_key, prompt, model_name, duration_seconds, aspect_ratio, image_input=None, save_location=""):
         if not prompt or prompt.strip() == "":
             print("FSL Veo: No prompt. Skipping.")
-            return (None,) # <-- FIX 1: Return None to signal 'no data' to ComfyUI
+            # FIX 1: Return None to signal 'no data' to ComfyUI (Syntax-Safe)
+            return (None,)
 
         final_api_key = api_key.strip() or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         if not final_api_key:
             print("FSL Veo Error: API Key missing.")
-            return (None,) # <-- FIX 2: Return None on API Key error
+            # FIX 2: Return None on API Key error (Syntax-Safe)
+            return (None,)
 
         print(f"FSL Veo: Requesting {model_name} (Forced Safe Defaults)...")
         
         try:
-            # ... (rest of the API request setup) ...
-
-            # ... (inside the polling loop, where errors occur) ...
+            client = genai.Client(api_key=final_api_key)
+            text_prompt = prompt 
             
-                if retry_count == max_retry_net:
+            img_arg = None
+            if image_input is not None:
+                print("FSL Veo: Image Input Detected.")
+                pil_img = self.tensor2pil(image_input)
+                buffered = BytesIO()
+                pil_img.save(buffered, format="PNG")
+                img_bytes = buffered.getvalue()
+                img_arg = types.Image(image_bytes=img_bytes, mime_type='image/png')
+
+            # --- SUBMISSION (SAFE MODE) ---
+            if img_arg:
+                 print(f"FSL Veo: Submitting Img2Vid (Defaults)")
+                 operation = client.models.generate_videos(
+                    model=model_name, prompt=text_prompt, image=img_arg, 
+                    config=types.GenerateVideosConfig(number_of_videos=1)
+                )
+            else:
+                 print(f"FSL Veo: Submitting Text2Vid (Defaults)")
+                 operation = client.models.generate_videos(
+                    model=model_name, prompt=text_prompt, 
+                    config=types.GenerateVideosConfig(number_of_videos=1)
+                )
+            
+            op_name = operation.name if hasattr(operation, "name") else str(operation)
+            print(f"FSL Veo: Job {op_name}. Polling...")
+
+            base_url = "https://generativelanguage.googleapis.com/v1beta/"
+            poll_url = f"{base_url}{op_name}?key={final_api_key}"
+            video_bytes = None
+            
+            max_poll_attempts = 60 # Poll for up to 10 minutes (60 * 10s)
+            
+            for _ in range(max_poll_attempts):
+                time.sleep(10)
+                
+                # --- RETRY LOGIC FOR 503/429 ERRORS ---
+                retry_count = 0
+                max_retry_net = 3 
+                data = None
+                
+                while retry_count < max_retry_net:
+                    try:
+                        req = urllib.request.Request(poll_url)
+                        with urllib.request.urlopen(req) as response:
+                            data = json.loads(response.read().decode())
+                        break # Success! Break the inner retry loop
+                    except urllib.error.HTTPError as e:
+                        # Handle 503 UNAVAILABLE, 500 INTERNAL, 429 RATE LIMITING
+                        if e.code in (500, 503, 429):
+                            wait_time = 2 ** retry_count + random.uniform(0, 1) # Exponential backoff
+                            print(f"\nFSL Veo Polling Error {e.code}: Server overloaded. Retrying in {wait_time:.1f}s (Attempt {retry_count + 1}/{max_retry_net})...")
+                            time.sleep(wait_time)
+                            retry_count += 1
+                        else:
+                            print(f"\nFSL Veo Polling encountered unrecoverable HTTP error {e.code}: {e.reason}. Aborting.")
+                            raise # Re-raise other HTTP errors
+                    except Exception as e:
+                        print(f"\nFSL Veo Polling encountered network error: {e}. Aborting.")
+                        raise
+
+                if retry_count == max_retry_net or data is None:
                     print("FSL Veo Error: Failed to connect/poll after multiple network retries.")
-                    return (None,) # <-- FIX 3: Return None if network fails persistently
+                    # FIX 3: Return None if network fails persistently (Syntax-Safe)
+                    return (None,)
 
-                # --- Process result data ---
+                # --- Process result data (only runs if network call succeeded) ---
                 if "done" in data and data["done"]:
-                    # ... (download/processing logic) ...
-
+                    print("\nFSL Veo: Finished. Downloading...")
+                    try:
+                        payload = data.get("response") or data.get("result")
                         if not payload:
                             print("FSL Veo Error: No result payload.")
-                            return (None,) # <-- FIX 4: Return None
+                            # FIX 4: Return None (Syntax-Safe)
+                            return (None,)
 
-                        # ... (check for samples/safety block) ...
+                        samples = payload.get("generateVideoResponse", {}).get("generatedSamples", []) or payload.get("generatedVideos", []) or payload.get("generatedSamples", [])
                         if not samples: 
-                            # ... (log error) ...
-                            return (None,) # <-- FIX 5: Return None on no samples/safety block
+                            rai = payload.get("generateVideoResponse", {})
+                            if rai.get("raiMediaFilteredCount", 0) > 0: print("FSL Veo Error: Video BLOCKED by Safety Filters.")
+                            # FIX 5: Return None on no samples/safety block (Syntax-Safe)
+                            return (None,)
 
-                        # ... (download success/failure) ...
-                        except Exception as download_e:
-                            print(f"FSL Veo Error downloading video bytes: {download_e}")
-                            return (None,) # <-- FIX 6: Return None on download failure
-
-                    break
+                        video_obj = samples[0]["video"]
+                        if "uri" in video_obj:
+                            dl_uri = video_obj["uri"] + (f"&key={final_api_key}" if "?alt=media" in video_obj["uri"] else f"?key={final_api_key}")
+                            with urllib.request.urlopen(urllib.request.Request(dl_uri, headers={'User-Agent': 'Mozilla/5.0'})) as v_resp:
+                                video_bytes = v_resp.read()
+                        elif "videoBytes" in video_obj:
+                            video_bytes = base64.b64decode(video_obj["videoBytes"])
+                        break
+                    except Exception as download_e:
+                        print(f"FSL Veo Error downloading video bytes: {download_e}")
+                        # FIX 6: Return None on download failure (Syntax-Safe)
+                        return (None,)
                 else:
                     print(".", end="", flush=True)
 
+
             if video_bytes:
-                # ... (save path logic) ...
-                return (str(final_path),) # Success
+                filename = f"{self.prefix}_{int(time.time())}.mp4"
+                base_dir = Path(self.default_output_dir)
+
+                # --- SAFE & SANITIZED final path ---
+                final_path = sanitize_video_save_path(save_location, base_dir, filename)
+
+                with open(final_path, "wb") as f:
+                    f.write(video_bytes)
+                print(f"FSL Veo SAVED: {final_path}")
+                return (str(final_path),)
             else:
                 print("FSL Veo Error: Generation failed/empty bytes (post-polling).")
-                return (None,) # <-- FIX 7: Return None on final failure
+                # FIX 7: Return None on final failure (Syntax-Safe)
+                return (None,)
 
         except Exception as e:
             print(f"FSL Veo General Error: {e}")
-            return (None,) # <-- FIX 8: Return None on general exception
-
+            # FIX 8: Return None on general exception (Syntax-Safe)
+            return (None,)
 
 
 ###############################################################
